@@ -1,0 +1,264 @@
+<html>
+	<head>
+		<title>battery_monitor</title>
+		<style type="text/css"><!--
+			body {
+				font-family: sans-serif;
+				font-size: small;
+			}
+			h1 {
+				text-align: center;
+				color: white;
+				background-color: #006699;
+				border: 1px solid #000088;
+			}
+			.subtitle {
+				text-align: center;
+			}
+			h2 {
+				color: #006699;
+			}
+			ol {
+				background-color: #eeeeff;
+				border: 1px solid #aaaadd;
+			}
+			p {
+				margin-left: 5ex;
+				margin-right: 5ex;
+				text-align: justify;
+			}
+			ul {
+				margin-left: 10ex;
+				margin-right: 10ex;
+				list-style: square;
+			}
+			a {
+				color: blue;
+				text-decoration: none;
+			}
+			.file {
+				margin-left: 10ex;
+				margin-right: 10ex;
+				padding: 1ex 1ex 1ex 1ex;
+				background-color: #dddddd;
+				white-space: pre;
+				font-family: monospace;
+			}
+			.image {
+				text-align: center;
+			}
+			img {
+				border: 0;
+			}
+		--></style>
+	</head>
+	<body>
+		<h1>battery_monitor</h1>
+		<p class="subtitle">Battery monitoring program for Linux</p>
+		<p class="subtitle">&copy; 2006 Ricardo Garcia Gonzalez</p>
+
+<h2>Index</h2>
+
+<ol>
+	<li><a href="#desc">Description</a></li>
+	<li><a href="#down">Download</a></li>
+	<li><a href="#comp">Compilation and installation</a></li>
+	<li><a href="#run">Running the program</a></li>
+	<li><a href="#misc">Miscelanea</a></li>
+</ol>
+
+<h2><a name="desc"></a>Description</h2>
+
+<p><em>battery_monitor</em> is a small battery monitoring program for Linux,
+that you can run in the background from your desktop session or launch from
+the boot scripts. It is designed with simple goals in mind and provides
+acoustic and/or visual alerts when your battery level is low or when it is
+fully charged, so you can take apropiate actions.</p>
+
+<h2><a name="down"></a>Download</h2>
+
+<p>Latest version is <strong>0.4</strong> and it can be downloaded from
+here: <a href="battery_monitor-0.4.tar.bz2">battery_monitor-0.4.tar.bz2</a>.
+It is licensed under the MIT License.</p>
+
+<h2><a name="comp"></a>Compilation and installation</h2>
+
+<p>To compile and install <em>battery_monitor</em> you need several components
+installed on your computer:</p>
+
+<ul>
+	<li>C compiler (probably GCC) and the standard C libraries and
+	headers.</li>
+	<li>POSIX threads libraries and headers (pthread.h).</li>
+	<li>X11 libraries and headers.</li>
+	<li>xine libraries and headers.</li>
+	<li>make tool.</li>
+</ul>
+
+<p>To compile the program, once you have installed everything needed, run
+<em>make</em> from the source code directory. To install it, run <em>make
+install</em> after compilation. This last step may require superuser
+privileges depending on the selected installation directory. The following
+parameters may be useful while compiling and installing:</p>
+
+<ul>
+	<li>CC: It lets you specify the C compiler name instead of gcc.</li>
+	<li>CFLAGS: You can use it to change the optimization level and/or
+	specify additional header directories by using extra <em>-I</em>
+	arguments.</li>
+	<li>LDFLAGS: In case the compiler can't find some of the required
+	libraries, use this parameter to pass additional <em>-L</em> arguments
+	in the link step.</li>
+	<li>PREFIX: The default prefix is <em>/usr/local</em>. If you change
+	this parameter you should change it in both the compilation and the
+	installation step. It's only used in the installation step for now,
+	but this may change.</li>
+	<li>DESTDIR: Useful for package maintainers, this lets you specify
+	a fake root directory in the installation step.</li>
+</ul>
+
+<p>Compilation and installation parameters are appended to the <em>make</em>
+command in variable assignment form. For example: <em>make install
+PREFIX=/usr DESTDIR=/tmp/fake_rootdir</em>.</p>
+
+<h2><a name="run"></a>Running the program</h2>
+
+<p>The program requires a handful of parameters to be run. If any parameter
+is missing, it will print usage instructions to standard output.</p>
+
+<p>The first 3 arguments are WAV files to be played when a low battery level
+has been detected, when the shutdown process has been launched and when
+the shutdown process has been cancelled, respectively. For reference, you
+may like the sounds I use, which are WAVs extracted from the following KDE
+sounds (you can probably get the original files from packages in your
+distribution or from the KDE Subversion repository):
+<em>KDE_Beep_Double.ogg</em>, <em>KDE_Window_Iconify.wav</em> and
+<em>KDE_Window_DeIconify.wav</em>.</p>
+
+<p>Then, the program needs a font name to be used to display the visual
+warnings under X. It's worth mentioning that it needs the name in the
+traditional format, as displayed by the <em>xfontsel</em> tool, for
+example. Warnings are displayed with red background and white foreground,
+and bold fonts are generally more readable.</p>
+
+<p>The last argument provides a way of calling the <em>shutdown</em>
+command. Note that it must be the <em>shutdown</em> command and not
+<em>halt</em> nor <em>reboot</em>. After the program detects battery
+levels are very low, and after some safety time, it will trigger a
+shutdown process to halt the machine in two minutes. For this, it will call
+<em>shutdown</em>. When you run the program as root from the init scripts,
+this won't be a problem and you only have to use <em>/sbin/shutdown</em>.
+However, if you run the program in your X session (as I do) and as a
+non-root user, chances are you won't be able to call <em>/sbin/shutdown</em>
+directly. You must then provide a way to call shutdown from that user account
+<strong>without needing user input</strong>. You could set the SUID bit
+in the <em>shutdown</em> program. Whether that's safe or not is up to you. I
+configured <em>sudo</em> myself and run the program with the following
+autostart script in KDE:</p>
+
+<p class="file">#!/bin/sh
+exec /home/rg3/bin/battery_monitor                        \
+	/home/rg3/Documentos/audio/bm/lowbat.wav          \
+	/home/rg3/Documentos/audio/bm/startsd.wav         \
+	/home/rg3/Documentos/audio/bm/stopsd.wav          \
+	'-*-console-*-*-*-*-16-*-*-*-*-*-iso10646-1'      \
+	'/usr/bin/sudo /sbin/shutdown'
+</p>
+
+<p>You can use it as a template. Pay attention to the use of quotes to group
+words and avoid unfortunate shell expansion attempts. Finally, a couple of
+screenshots showing the program in action:<p>
+
+<p class="image"><img src="lowbat.png" /></p>
+<p class="image"><img src="charged.png" /></p>
+
+<h2><a name="misc"></a>Miscelanea</h2>
+
+<p>In this last section I will try to explain how the program works internally
+and give you some information about why I decided to make it this way.</p>
+
+<p>The first you may want to know is <em>What's the program going to do once I
+get it to run?</em>. By default, unless you modify the program source before
+compiling, it's going to check the battery status each 20 seconds. The battery
+status information is gathered from the files in the
+<em>/proc/acpi/battery/BAT1</em> directory. If it detects that the battery is
+fully charged, it will display a sign saying so. The sign will disappear when,
+in the next check, it will see that the battery is discharging. So, basically,
+when I see the sign I unplug the AC adapter from the back of my laptop and
+the sign disappears some seconds later.</p>
+
+<p>When the battery is discharging, capacity may drop below the low capacity
+limit of the battery. When this happens, it means there are only some minutes
+of power left. In my laptop, around five. A sign warning of low battery will
+be displayed and, with each check, the program will try to play the sound you
+chose for low battery warnings. This behaviour may remind you of what many
+cellular phones do. After about 1 minute of warnings, it will call
+<em>shutdown</em> to halt the system gracefully in 2 minutes. When it 
+calls shutdown it plays the sound you chose for "shutdown starting".</p>
+
+<p>This situation may be reverted once you plug the AC adapter in and it
+starts charning again. In the next check, the sign will be removed, sounds
+will stop and the shutdown process will be cancelled.</p>
+
+<p>One of the first things people usually ask me when I mention them this
+program is: <em>Why [the hell] do you use the xine library?</em> Well, you
+should know by now that the program plays sounds to get your attention.
+Playing sounds from a program may be a difficult task, especially for such
+a simple program like this one, and you have to solve several problems.
+First off, you must know how to read the contents of WAV or MP3 files and
+extract the audio data from them. Then, you have to choose how to output
+that sound. You could choose to play it through ESD, arts, OSS, ALSA or
+whatever. With the xine library, you don't have to care from the programmer
+point of view about any of this problems. You simply tell the library to
+play the sound, and it plays it! It provides a very convenient level of
+abstraction, and the API is stable enough.</p>
+
+<p>Many people use the xine library as their backend for amaroK, a KDE audio
+player. By using it, amaroK can play many file formats easily. Furthermore,
+the xine library is configured by itself. You can select the output device,
+if you want to use ALSA or OSS, and all programs that use it may change
+their behaviour without any further changes. You can set up the ALSA dmix
+plugin, for example, to be able to play several sounds at the same time, and
+tell the xine library to use it. All programs will benefit from this central
+configuration change. So, all in all, while I do not use the xine media player
+itself to play my media files, I use the xine library in several programs
+because it's very convenient. It helps keeping the code lines number low.</p>
+
+<p>Finally, some people asked me if the program displayed the remaining
+battery time or charge percentage. No, the program does not display that
+information. When I started to use the KDE battery monitor and/or gkrellm,
+I saw they lacked the precision I wanted. Estimating battery minutes
+remaining and charge percentage is tricky, especially the first one. All
+you know is how many capacity is left and the rate you're consuming power
+at <em>now</em>. You may, for example, look at the battery minutes left and
+think you still have 30 minutes. But then, you start playing a game or
+browsing websites with a lot of animations and flash content and, 10 minutes
+later, you are on low battery. <em>What? I thought I had 20 more minutes.</em>
+Well, you may have had 20 more minutes if your power consumption rate had
+stayed the same, but it increased.</p>
+
+<p>Similar problems arise with charge percentage while charging (while
+discharging it's more reliable). How do those programs estimate the charging
+percentage while charging? They look at the maximum capacity achieved the
+last time the battery was fully charged. By the time your current capacity
+reaches that number, they will display 100%. Does this mean that the battery
+is fully charged? No. You may have charged 4023 mAh the last time, but you
+may charge 4136 mAh this time. It can happen. It happens all the time, in
+fact.</p>
+
+<p>When I wrote this program, I wanted to optimize battery usage. I don't want
+to buy a new battery, so I try to preserve the one I have, and to do that I
+want to know when the battery is fully charged and when the battery is really
+low, and I wrote this program simply to have that first hand, reliable
+information. Granted, having an estimated charge percentage or an estimated
+number of minutes left is very user-friendly. However, I want to know when I
+should plug or unplug the AC adapter. If possible, the program had to be
+independent of the sound system and the X desktop manager, so I designed it
+with those goals in mind. I think I achieved those goals, and I now use the
+program daily.</p>
+
+<p>I hope you find it useful. Thanks for your interest in
+<em>battery_monitor</em>!</p>
+
+	</body>
+</html>
