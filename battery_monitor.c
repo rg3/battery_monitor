@@ -50,7 +50,7 @@ const char MSG_UNKNOWN_CHST[] =	"Warning: unknown charging state";
 
 #define TEMP_SIGN_TIME		5 /* seconds */
 #define CHECK_PERIOD		20 /* seconds */
-#define MAX_WARNS		3
+#define SAFETY_TIME		60 /* seconds */
 
 const char SHUTDOWN_WAIT[] =	"2"; /* minutes */
 
@@ -170,7 +170,8 @@ int main(int argc, char *argv[])
 			if (remcap < lowlimit) {
 				x11_sign_display(MESSAGE_LOW, &x11_sign_active);
 				numwarns++;
-				if (numwarns >= MAX_WARNS && !shutdown_launched)
+				if ((numwarns * CHECK_PERIOD) >= SAFETY_TIME &&
+				    !shutdown_launched)
 					start_shutdown(&shutdown_launched);
 				else
 					emit_alert(ALERT_LOWBAT);
