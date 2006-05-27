@@ -1,4 +1,7 @@
-<html>
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+    "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" >
 	<head>
 		<title>battery_monitor</title>
 		<style type="text/css"><!--
@@ -67,7 +70,7 @@
 	<li><a href="#misc">Miscelanea</a></li>
 </ol>
 
-<h2><a name="desc"></a>Description</h2>
+<h2><a id="desc"></a>Description</h2>
 
 <p><em>battery_monitor</em> is a small battery monitoring program for Linux,
 that you can run in the background from your desktop session or launch from
@@ -75,13 +78,13 @@ the boot scripts. It is designed with simple goals in mind and provides
 acoustic and/or visual alerts when your battery level is low or when it is
 fully charged, so you can take apropiate actions.</p>
 
-<h2><a name="down"></a>Download</h2>
+<h2><a id="down"></a>Download</h2>
 
 <p>Latest version is <strong>0.4</strong> and it can be downloaded from
 here: <a href="battery_monitor-0.4.tar.bz2">battery_monitor-0.4.tar.bz2</a>.
 It is licensed under the MIT License.</p>
 
-<h2><a name="comp"></a>Compilation and installation</h2>
+<h2><a id="comp"></a>Compilation and installation</h2>
 
 <p>To compile and install <em>battery_monitor</em> you need several components
 installed on your computer:</p>
@@ -121,7 +124,7 @@ parameters may be useful while compiling and installing:</p>
 command in variable assignment form. For example: <em>make install
 PREFIX=/usr DESTDIR=/tmp/fake_rootdir</em>.</p>
 
-<h2><a name="run"></a>Running the program</h2>
+<h2><a id="run"></a>Running the program</h2>
 
 <p>The program requires a handful of parameters to be run. If any parameter
 is missing, it will print usage instructions to standard output.</p>
@@ -167,20 +170,22 @@ exec /home/rg3/bin/battery_monitor                        \
 
 <p>You can use it as a template. Pay attention to the use of quotes to group
 words and avoid unfortunate shell expansion attempts. Finally, a couple of
-screenshots showing the program in action:<p>
+screenshots showing the program in action:</p>
 
-<p class="image"><img src="lowbat.png" /></p>
-<p class="image"><img src="charged.png" /></p>
+<p class="image"><img src="lowbat.png"
+alt="Program displaying the low battery warning"/></p>
+<p class="image"><img src="charged.png"
+alt="Program displaying the battery charged warning"/></p>
 
-<h2><a name="misc"></a>Miscelanea</h2>
+<h2><a id="misc"></a>Miscelanea</h2>
 
 <p>In this last section I will try to explain how the program works internally
 and give you some information about why I decided to make it this way.</p>
 
-<p>The first you may want to know is <em>What's the program going to do once I
-get it to run?</em>. By default, unless you modify the program source before
-compiling, it's going to check the battery status each 20 seconds. The battery
-status information is gathered from the files in the
+<p>The first thing you may want to know is <em>What's the program going to do
+	once I get it to run?</em>. By default, unless you modify the program source
+before compiling, it's going to check the battery status each 20 seconds. The
+battery status information is gathered from the files in the
 <em>/proc/acpi/battery/BAT1</em> directory. If it detects that the battery is
 fully charged, it will display a sign saying so. The sign will disappear when,
 in the next check, it will see that the battery is discharging. So, basically,
@@ -197,7 +202,7 @@ cellular phones do. After about 1 minute of warnings, it will call
 calls shutdown it plays the sound you chose for "shutdown starting".</p>
 
 <p>This situation may be reverted once you plug the AC adapter in and it
-starts charning again. In the next check, the sign will be removed, sounds
+starts charging again. In the next check, the sign will be removed, sounds
 will stop and the shutdown process will be cancelled.</p>
 
 <p>One of the first things people usually ask me when I mention them this
@@ -222,23 +227,24 @@ plugin, for example, to be able to play several sounds at the same time, and
 tell the xine library to use it. All programs will benefit from this central
 configuration change. So, all in all, while I do not use the xine media player
 itself to play my media files, I use the xine library in several programs
-because it's very convenient. It helps keeping the code lines number low.</p>
+because it's very convenient. It helps me reducing the number of lines of
+code.</p>
 
 <p>Finally, some people asked me if the program displayed the remaining
 battery time or charge percentage. No, the program does not display that
 information. When I started to use the KDE battery monitor and/or gkrellm,
 I saw they lacked the precision I wanted. Estimating battery minutes
-remaining and charge percentage is tricky, especially the first one. All
-you know is how many capacity is left and the rate you're consuming power
-at <em>now</em>. You may, for example, look at the battery minutes left and
+remaining and charge percentage is tricky, especially the former. All
+you know is how much capacity is left and the rate you're using power
+at, <em>now</em>. You may, for example, look at the battery minutes left and
 think you still have 30 minutes. But then, you start playing a game or
 browsing websites with a lot of animations and flash content and, 10 minutes
 later, you are on low battery. <em>What? I thought I had 20 more minutes.</em>
-Well, you may have had 20 more minutes if your power consumption rate had
-stayed the same, but it increased.</p>
+Well, you may have had 20 more minutes if your power use rate had stayed the
+same, but it increased.</p>
 
 <p>Similar problems arise with charge percentage while charging (while
-discharging it's more reliable). How do those programs estimate the charging
+discharging, it's more reliable). How do those programs estimate the charging
 percentage while charging? They look at the maximum capacity achieved the
 last time the battery was fully charged. By the time your current capacity
 reaches that number, they will display 100%. Does this mean that the battery
@@ -249,11 +255,11 @@ fact.</p>
 <p>When I wrote this program, I wanted to optimize battery usage. I don't want
 to buy a new battery, so I try to preserve the one I have, and to do that I
 want to know when the battery is fully charged and when the battery is really
-low, and I wrote this program simply to have that first hand, reliable
+low, and I wrote this program to give me first hand, reliable
 information. Granted, having an estimated charge percentage or an estimated
 number of minutes left is very user-friendly. However, I want to know when I
 should plug or unplug the AC adapter. If possible, the program had to be
-independent of the sound system and the X desktop manager, so I designed it
+independent of the sound system and the X environment, so I designed it
 with those goals in mind. I think I achieved those goals, and I now use the
 program daily.</p>
 
