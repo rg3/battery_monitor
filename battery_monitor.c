@@ -11,6 +11,7 @@
 #include <assert.h>
 #include <unistd.h>
 #include <sys/select.h>
+#include <errno.h>
 #include <X11/Xlib.h>
 #include <xine.h>
 
@@ -18,19 +19,22 @@
  * CONSTANTS AND PROTOTYPES
  */
 
-#define ARG_NUM			6
+#define ARG_NUM_MIN		6
+#define ARG_NUM_MAX		7
 #define ARG_PROGNAME		0
 #define ARG_LOWBAT		1
 #define ARG_STARTSD		2
 #define ARG_STOPSD		3
 #define ARG_FONT		4
 #define ARG_SDCOMMAND		5
+#define ARG_CHECK_PERIOD	6
 
 const char *arg_soundfile_lowbat;
 const char *arg_soundfile_startsd;
 const char *arg_soundfile_stopsd;
 const char *arg_win_font;
 const char *arg_shutdown_command;
+int arg_check_period;
 
 const char FILE_INFO[] =	"/proc/acpi/battery/BAT1/info";
 const char FILE_STATE[] =	"/proc/acpi/battery/BAT1/state";
@@ -49,7 +53,9 @@ const char MSG_UNABLE_CHST[] =	"Warning: unable to read charging state";
 const char MSG_UNKNOWN_CHST[] =	"Warning: unknown charging state";
 
 #define TEMP_SIGN_TIME		5 /* seconds */
-#define CHECK_PERIOD		20 /* seconds */
+#define CHECK_PERIOD_MIN	1 /* seconds */
+#define CHECK_PERIOD_MAX	(24 * 3600) /* seconds */
+#define CHECK_PERIOD_DEFAULT	20 /* seconds */
 #define SAFETY_TIME		60 /* seconds */
 
 const char SHUTDOWN_WAIT[] =	"2"; /* minutes */
@@ -121,7 +127,7 @@ int main(int argc, char *argv[])
 	int remcap;			/* remaining capacity */
 	int lowlimit;			/* low capacity limit */
 
-	int numwarns;			/* number of warnings so far */
+	int warnnum;			/* number of warnings so far */
 	bool shutdown_launched;		/* shutdown process running? */
 	bool x11_sign_active;		/* X11 sign active? */
 
@@ -131,7 +137,7 @@ int main(int argc, char *argv[])
 	alert_init();
 	curstate = CHST_INVALID;
 	prevstate = CHST_INVALID;
-	numwarns = 0;
+	warnnum = 0;
 	shutdown_launched = false;
 	x11_sign_active = false;
 
@@ -169,12 +175,13 @@ int main(int argc, char *argv[])
 			/* low battery: display sign, alert and/or shutdown */
 			if (remcap < lowlimit) {
 				x11_sign_display(MESSAGE_LOW, &x11_sign_active);
-				numwarns++;
-				if ((numwarns * CHECK_PERIOD) >= SAFETY_TIME &&
-				    !shutdown_launched)
+				if (warnnum * arg_check_period >= SAFETY_TIME &&
+				    			!shutdown_launched)
 					start_shutdown(&shutdown_launched);
-				else
+				else {
+					warnnum++;
 					emit_alert(ALERT_LOWBAT);
+				}
 			}
 
 			break;
@@ -186,21 +193,21 @@ int main(int argc, char *argv[])
 		case CHST_CHARGED:
 			/* display, reset warn counter and cancel shutdown */
 			x11_sign_display(MESSAGE_CHARGED, &x11_sign_active);
-			numwarns = 0;
+			warnnum = 0;
 			stop_shutdown(&shutdown_launched);
 			break;
 
 		case CHST_CHARGING:
 			/* undisplay, reset and cancel */
 			x11_sign_undisplay(&x11_sign_active);
-			numwarns = 0;
+			warnnum = 0;
 			stop_shutdown(&shutdown_launched);
 			break;
 
 		case CHST_NO_BAT:
 			/* undisplay, reset, cancel and warning */
 			x11_sign_undisplay(&x11_sign_active);
-			numwarns = 0;
+			warnnum = 0;
 			stop_shutdown(&shutdown_launched);
 			fprintf(stderr, "%s\n", MSG_NOT_PRESENT);
 			x11_sign_display_temp(MSG_NOT_PRESENT,
@@ -210,7 +217,7 @@ int main(int argc, char *argv[])
 		case CHST_INVALID:
 			/* undisplay, reset, cancel and another warning */
 			x11_sign_undisplay(&x11_sign_active);
-			numwarns = 0;
+			warnnum = 0;
 			stop_shutdown(&shutdown_launched);
 			fprintf(stderr, "%s\n", MSG_UNABLE_CHST);
 			x11_sign_display_temp(MSG_UNABLE_CHST,
@@ -232,7 +239,7 @@ int main(int argc, char *argv[])
 
 		/* save previous state and sleep */
 		prevstate = curstate;
-		safe_sleep(CHECK_PERIOD);
+		safe_sleep(arg_check_period);
 	}
 
 	return EXIT_FAILURE;	/* unreachable */
@@ -548,7 +555,8 @@ void *x11_thread_routine(void *msg)
 				      x11_redraw_routine, (void *)(&dd)));
 
 	/* wait at semaphore, ready to exit */
-	assert(0 == sem_wait(&x11_thread_semaphore));
+	while (-1 == sem_wait(&x11_thread_semaphore) && EINTR == errno)
+		;
 
 	/* cancel redrawing thread */
 	assert(0 == pthread_cancel(redraw_thread));
@@ -834,14 +842,20 @@ void safe_sleep(long seconds)
 
 void parse_args(int argc, char *argv[])
 {
-	if (argc != ARG_NUM) {
-		fprintf(stderr, "Usage: %s %s %s %s %s %s\n\n",
+	char *begin;
+	char *end;
+	size_t length;
+	long aux;
+
+	if (argc < ARG_NUM_MIN || argc > ARG_NUM_MAX) {
+		fprintf(stderr, "Usage: %s %s %s %s %s %s [%s]\n\n",
 			argv[ARG_PROGNAME],
 			"low_battery_wav",
 			"start_shutdown_wav",
 			"stop_shutdown_wav",
 			"window_font",
-			"shutdown_command");
+			"shutdown_command",
+			"check_period");
 		fprintf(stderr, "Please note that the window font must be\n");
 		fprintf(stderr, "given in the traditional format, as used\n");
 		fprintf(stderr, "by xlsfonts, for example. The shutdown\n");
@@ -857,4 +871,22 @@ void parse_args(int argc, char *argv[])
 	arg_soundfile_stopsd = argv[ARG_STOPSD];
 	arg_win_font = argv[ARG_FONT];
 	arg_shutdown_command = argv[ARG_SDCOMMAND];
+
+	/* parse check period time */
+	if (argc == ARG_NUM_MAX) {
+		begin = argv[ARG_CHECK_PERIOD];
+		length = strlen(begin);
+		aux = strtol(argv[ARG_CHECK_PERIOD], &end, 0);
+
+		if (end != (begin + length) ||
+		    aux < CHECK_PERIOD_MIN ||
+		    aux > CHECK_PERIOD_MAX) {
+			fprintf(stderr, "Error parsing check period time\n");
+			exit(EXIT_FAILURE);
+		}
+
+		arg_check_period = (int) aux;
+	}
+	else
+		arg_check_period = CHECK_PERIOD_DEFAULT;
 }
