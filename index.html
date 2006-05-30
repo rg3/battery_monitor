@@ -80,8 +80,8 @@ fully charged, so you can take apropiate actions.</p>
 
 <h2><a id="down"></a>Download</h2>
 
-<p>Latest version is <strong>0.4</strong> and it can be downloaded from
-here: <a href="battery_monitor-0.4.tar.bz2">battery_monitor-0.4.tar.bz2</a>.
+<p>Latest version is <strong>0.5</strong> and it can be downloaded from
+here: <a href="battery_monitor-0.5.tar.bz2">battery_monitor-0.5.tar.bz2</a>.
 It is licensed under the MIT License.</p>
 
 <h2><a id="comp"></a>Compilation and installation</h2>
@@ -169,8 +169,11 @@ exec /home/rg3/bin/battery_monitor                        \
 </p>
 
 <p>You can use it as a template. Pay attention to the use of quotes to group
-words and avoid unfortunate shell expansion attempts. Finally, a couple of
-screenshots showing the program in action:</p>
+words and avoid unfortunate shell expansion attempts.</p>
+
+<p>Optionally, you can specify the number of seconds between checks as an
+additional argument at the end. It must be an integer between 1 and 86400.
+Finally, a couple of screenshots showing the program in action:</p>
 
 <p class="image"><img src="lowbat.png"
 alt="Program displaying the low battery warning"/></p>
@@ -183,14 +186,13 @@ alt="Program displaying the battery charged warning"/></p>
 and give you some information about why I decided to make it this way.</p>
 
 <p>The first thing you may want to know is <em>What's the program going to do
-	once I get it to run?</em>. By default, unless you modify the program source
-before compiling, it's going to check the battery status each 20 seconds. The
-battery status information is gathered from the files in the
-<em>/proc/acpi/battery/BAT1</em> directory. If it detects that the battery is
-fully charged, it will display a sign saying so. The sign will disappear when,
-in the next check, it will see that the battery is discharging. So, basically,
-when I see the sign I unplug the AC adapter from the back of my laptop and
-the sign disappears some seconds later.</p>
+once I get it to run?</em>. By default, it's going to check the battery status
+each 20 seconds. The battery status information is gathered from the files in
+the <em>/proc/acpi/battery/BAT1</em> directory. If it detects that the battery
+is fully charged, it will display a sign saying so. The sign will disappear
+when, in the next check, it will see that the battery is discharging. So,
+basically, when I see the sign I unplug the AC adapter from the back of my
+laptop and the sign disappears some seconds later.</p>
 
 <p>When the battery is discharging, capacity may drop below the low capacity
 limit of the battery. When this happens, it means there are only some minutes
