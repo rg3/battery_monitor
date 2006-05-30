@@ -186,7 +186,7 @@ alt="Program displaying the battery charged warning"/></p>
 and give you some information about why I decided to make it this way.</p>
 
 <p>The first thing you may want to know is <em>What's the program going to do
-once I get it to run?</em>. By default, it's going to check the battery status
+once I get it to run?</em> By default, it's going to check the battery status
 each 20 seconds. The battery status information is gathered from the files in
 the <em>/proc/acpi/battery/BAT1</em> directory. If it detects that the battery
 is fully charged, it will display a sign saying so. The sign will disappear
@@ -215,10 +215,10 @@ a simple program like this one, and you have to solve several problems.
 First off, you must know how to read the contents of WAV or MP3 files and
 extract the audio data from them. Then, you have to choose how to output
 that sound. You could choose to play it through ESD, arts, OSS, ALSA or
-whatever. With the xine library, you don't have to care from the programmer
-point of view about any of this problems. You simply tell the library to
+whatever. With the xine library, you don't have to care (from the programmer
+point of view) about any of this problems. You simply tell the library to
 play the sound, and it plays it! It provides a very convenient level of
-abstraction, and the API is stable enough.</p>
+abstraction, and the API is easy and stable enough.</p>
 
 <p>Many people use the xine library as their backend for amaroK, a KDE audio
 player. By using it, amaroK can play many file formats easily. Furthermore,
@@ -229,17 +229,17 @@ plugin, for example, to be able to play several sounds at the same time, and
 tell the xine library to use it. All programs will benefit from this central
 configuration change. So, all in all, while I do not use the xine media player
 itself to play my media files, I use the xine library in several programs
-because it's very convenient. It helps me reducing the number of lines of
-code.</p>
+because it's very convenient. And, here, it helps me reducing the number of
+lines of code.</p>
 
 <p>Finally, some people asked me if the program displayed the remaining
 battery time or charge percentage. No, the program does not display that
-information. When I started to use the KDE battery monitor and/or gkrellm,
+information. When I began using the KDE battery monitor and/or gkrellm,
 I saw they lacked the precision I wanted. Estimating battery minutes
 remaining and charge percentage is tricky, especially the former. All
 you know is how much capacity is left and the rate you're using power
-at, <em>now</em>. You may, for example, look at the battery minutes left and
-think you still have 30 minutes. But then, you start playing a game or
+at, <em>now</em>. You may, for example, look at the remaining time and think
+you still have 30 minutes left. But then, you start playing a game or
 browsing websites with a lot of animations and flash content and, 10 minutes
 later, you are on low battery. <em>What? I thought I had 20 more minutes.</em>
 Well, you may have had 20 more minutes if your power use rate had stayed the
@@ -251,11 +251,13 @@ percentage while charging? They look at the maximum capacity achieved the
 last time the battery was fully charged. By the time your current capacity
 reaches that number, they will display 100%. Does this mean that the battery
 is fully charged? No. You may have charged 4023 mAh the last time, but you
-may charge 4136 mAh this time. It can happen. It happens all the time, in
-fact.</p>
+may charge 4136 mAh this time. It can happens normally. Furthermore, there
+are batteries in which the power decreases linearly and other ones in which
+it decreases exponentially. In fact, gkrellm lets you tune those parameters,
+proving it's not easy.</p>
 
 <p>When I wrote this program, I wanted to optimize battery usage. I don't want
-to buy a new battery, so I try to preserve the one I have, and to do that I
+to buy a new battery, so I try to preserve the one I have, and to do so I
 want to know when the battery is fully charged and when the battery is really
 low, and I wrote this program to give me first hand, reliable
 information. Granted, having an estimated charge percentage or an estimated
