@@ -563,10 +563,13 @@ void *x11_thread_routine(void *msg)
 
 free_and_exit:
 	/* free data and exit */
-	if (NULL != dd.display && NULL != font)
-		XFreeFont(dd.display, font);
 	if (NULL != dd.display)
 		XCloseDisplay(dd.display);
+
+	/*
+	 * according to the manpage, closing the display frees all resources
+	 * allocated for it unless you specify a special mode.
+	 */
 
 	return NULL;
 }
@@ -668,7 +671,7 @@ void *emit_sound_routine(void *al)
 	const char *audiofile = NULL;
 	alert_type alert;
 
-	/* recover alert type */
+	/* recover alert type and free it */
 	assert(NULL != al);
 	alert = *((alert_type *)al);
 	free(al);
