@@ -8,16 +8,16 @@ REMOVE = /bin/rm -f
 INSTALL = /usr/bin/install
 MKDIR = /bin/mkdir
 
-battery_monitor: battery_monitor.o
-	$(CC) $(ICFLAGS) -o battery_monitor battery_monitor.c $(ILDFLAGS) $(LDFLAGS)
+battery-monitor: battery-monitor.o
+	$(CC) $(ICFLAGS) -o battery-monitor battery-monitor.c $(ILDFLAGS) $(LDFLAGS)
 
-battery_monitor.o: battery_monitor.c
-	$(CC) $(ICFLAGS) $(CFLAGS) -c battery_monitor.c
+battery-monitor.o: battery-monitor.c
+	$(CC) $(ICFLAGS) $(CFLAGS) -c battery-monitor.c
 
-install: battery_monitor
+install: battery-monitor
 	$(MKDIR) -p $(DESTDIR)$(PREFIX)/bin
-	$(INSTALL) battery_monitor -m u=rwx,go=rx $(DESTDIR)$(PREFIX)/bin
+	$(INSTALL) battery-monitor -m u=rwx,go=rx $(DESTDIR)$(PREFIX)/bin
 clean:
 	$(REMOVE) *~
-	$(REMOVE) battery_monitor
-	$(REMOVE) battery_monitor.o
+	$(REMOVE) battery-monitor
+	$(REMOVE) battery-monitor.o
