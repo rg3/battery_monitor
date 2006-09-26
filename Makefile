@@ -1,23 +1,25 @@
-CC = gcc
-CFLAGS = -O2
-LDFLAGS =
-ICFLAGS = -pthread -pedantic -Wall `xine-config --cflags`
-ILDFLAGS = -lX11 -lpthread `xine-config --libs` -L/usr/X11/lib
+CC ?= cc
+CFLAGS ?= -O2
+LDFLAGS ?=
+
+CFLAGS += -pthread -pedantic -Wall `xine-config --cflags`
+LDFLAGS += -lX11 -lpthread `xine-config --libs` -L/usr/X11/lib
+
 PREFIX = /usr/local
 REMOVE = /bin/rm -f
 INSTALL = /usr/bin/install
-MKDIR = /bin/mkdir
+MKDIR = /bin/mkdir -p
 
-battery-monitor: battery-monitor.o
-	$(CC) $(ICFLAGS) -o battery-monitor battery-monitor.c $(ILDFLAGS) $(LDFLAGS)
+battery_monitor: battery_monitor.o
+	$(CC) $(CFLAGS) -o battery_monitor battery_monitor.c $(LDFLAGS)
 
-battery-monitor.o: battery-monitor.c
-	$(CC) $(ICFLAGS) $(CFLAGS) -c battery-monitor.c
+battery_monitor.o: battery_monitor.c
+	$(CC) $(CFLAGS) -c battery_monitor.c
 
-install: battery-monitor
-	$(MKDIR) -p $(DESTDIR)$(PREFIX)/bin
-	$(INSTALL) battery-monitor -m u=rwx,go=rx $(DESTDIR)$(PREFIX)/bin
+install: battery_monitor
+	$(MKDIR) $(DESTDIR)$(PREFIX)/bin
+	$(INSTALL) battery_monitor -m u=rwx,go=rx $(DESTDIR)$(PREFIX)/bin
 clean:
 	$(REMOVE) *~
-	$(REMOVE) battery-monitor
-	$(REMOVE) battery-monitor.o
+	$(REMOVE) battery_monitor
+	$(REMOVE) battery_monitor.o
