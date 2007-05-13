@@ -19,7 +19,7 @@ IF (xine_config_cflags_result)
 ENDIF(xine_config_cflags_result)
 
 IF (xine_config_libs_result)
-	MESSAGE(FATAL_ERROR "Error: could not run  ${XINE_CONFIG_LIBS_COMMAND}")
+	MESSAGE(FATAL_ERROR "Error: could not run ${XINE_CONFIG_LIBS_COMMAND}")
 ENDIF(xine_config_libs_result)
 
 # Extract linker libs and linker directories from the Xine commands
