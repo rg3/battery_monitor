@@ -1,4 +1,4 @@
-PROJECT(battery_monitor)
+PROJECT(battery_monitor C)
 
 # Xine commands to run
 SET(XINE_CONFIG_CFLAGS_COMMAND xine-config --cflags)
