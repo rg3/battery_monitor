@@ -58,7 +58,7 @@
 	<body>
 		<h1>battery_monitor</h1>
 		<p class="subtitle">Battery monitoring program for Linux</p>
-		<p class="subtitle">&copy; 2006 Ricardo Garcia Gonzalez</p>
+		<p class="subtitle">&copy; 2006-2007 Ricardo Garcia Gonzalez</p>
 
 <h2>Index</h2>
 
@@ -76,7 +76,7 @@
 that you can run in the background from your desktop session or launch from
 the boot scripts. It is designed with simple goals in mind and provides
 acoustic and/or visual alerts when your battery level is low or when it is
-fully charged, so you can take apropiate actions.</p>
+fully charged, so you can take appropriate actions.</p>
 
 <h2><a id="down"></a>Download</h2>
 
@@ -124,6 +124,14 @@ parameters may be useful while compiling and installing:</p>
 command in variable assignment form. For example: <em>make install
 PREFIX=/usr DESTDIR=/tmp/fake_rootdir</em>.</p>
 
+<p>In addition, the source package includes a CMakeLists.txt file for those who
+would like to use CMake instead. In this case I recommend you to use a
+separate build directory. You can then specify the build type
+(<em>RelWithDebInfo</em> is recommended) with its compiler flags, additional
+linker flags, etc. For non-automated builds, I recommend you to use
+<em>ccmake</em> to configure and generate the Makefile, followed by
+<em>make</em> and <em>make install</em>.</p>
+
 <h2><a id="run"></a>Running the program</h2>
 
 <p>The program requires a handful of parameters to be run. If any parameter
@@ -161,9 +169,9 @@ autostart script in KDE:</p>
 
 <p class="file">#!/bin/sh
 exec /home/rg3/bin/battery_monitor                        \
-	/home/rg3/Documentos/audio/bm/lowbat.wav          \
-	/home/rg3/Documentos/audio/bm/startsd.wav         \
-	/home/rg3/Documentos/audio/bm/stopsd.wav          \
+	/home/rg3/Documents/audio/bm/lowbat.wav          \
+	/home/rg3/Documents/audio/bm/startsd.wav         \
+	/home/rg3/Documents/audio/bm/stopsd.wav          \
 	'-*-console-*-*-*-*-16-*-*-*-*-*-iso10646-1'      \
 	'/usr/bin/sudo /sbin/shutdown'
 </p>
@@ -199,7 +207,7 @@ limit of the battery. When this happens, it means there are only some minutes
 of power left. In my laptop, around five. A sign warning of low battery will
 be displayed and, with each check, the program will try to play the sound you
 chose for low battery warnings. This behaviour may remind you of what many
-cellular phones do. After about 1 minute of warnings, it will call
+cell phones do. After about 1 minute of warnings, it will call
 <em>shutdown</em> to halt the system gracefully in 2 minutes. When it 
 calls shutdown it plays the sound you chose for "shutdown starting".</p>
 
@@ -215,10 +223,10 @@ a simple program like this one, and you have to solve several problems.
 First off, you must know how to read the contents of WAV or MP3 files and
 extract the audio data from them. Then, you have to choose how to output
 that sound. You could choose to play it through ESD, arts, OSS, ALSA or
-whatever. With the xine library, you don't have to care (from the programmer
-point of view) about any of this problems. You simply tell the library to
-play the sound, and it plays it! It provides a very convenient level of
-abstraction, and the API is easy and stable enough.</p>
+any other sound system. With the xine library, you don't have to care
+(from the programmer point of view) about any of this problems. You simply
+tell the library to play the sound, and it plays it! It provides a very
+convenient level of abstraction, and the API is easy and stable enough.</p>
 
 <p>Many people use the xine library as their backend for amaroK, a KDE audio
 player. By using it, amaroK can play many file formats easily. Furthermore,
@@ -227,7 +235,7 @@ if you want to use ALSA or OSS, and all programs that use it may change
 their behaviour without any further changes. You can set up the ALSA dmix
 plugin, for example, to be able to play several sounds at the same time, and
 tell the xine library to use it. All programs will benefit from this central
-configuration change. So, all in all, while I do not use the xine media player
+configuration change. So, all in all, while I do not use the Xine media player
 itself to play my media files, I use the xine library in several programs
 because it's very convenient. And, here, it helps me reducing the number of
 lines of code.</p>
