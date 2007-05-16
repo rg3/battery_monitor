@@ -43,14 +43,24 @@ const char FILE_STATE[] =	"/proc/acpi/battery/BAT1/state";
 #define WIN_YPOS		0
 #define WIN_PADDING		10 /* pixels */
 
-const char MESSAGE_CHARGED[] =	"Battery charged";
-const char MESSAGE_LOW[] =	"LOW BATTERY!";
-
-const char MSG_UNABLE_LOW[] =	"Warning: unable to read low capacity limit";
-const char MSG_UNABLE_LEFT[] =	"Warning: unable to read remaining capacity";
-const char MSG_NOT_PRESENT[] =	"Warning: battery not detected";
-const char MSG_UNABLE_CHST[] =	"Warning: unable to read charging state";
-const char MSG_UNKNOWN_CHST[] =	"Warning: unknown charging state";
+#define	MSG_BATTERY_CHARGED	0
+#define MSG_LOW_BATTERY		1
+#define MSG_LOWCAP_WARNING	2
+#define MSG_REMCAP_WARNING	3
+#define MSG_NOTDET_WARNING	4
+#define MSG_CHST_READ_WARNING	5
+#define	MSG_CHST_UNK_WARNING	6
+#define MSG_REMOVE_SIGN		10
+const char *x11_signs[] = {
+	"Battery charged",
+	"LOW BATTERY!",
+	"Warning: unable to read low capacity limit",
+	"Warning: unable to read remaining capacity",
+	"Warning: battery not detected",
+	"Warning: unable to read charging state",
+	"Warning: unknown charging state",
+	NULL
+};
 
 #define TEMP_SIGN_TIME		5 /* seconds */
 #define CHECK_PERIOD_MIN	1 /* seconds */
@@ -62,6 +72,8 @@ const char SHUTDOWN_WAIT[] =	"2"; /* minutes */
 
 #define LINE_MAX		80
 #define LINE_BUFSIZE		(LINE_MAX + 2) /* '\n' and '\0' */
+#define READ_FD			0
+#define WRITE_FD		1
 
 /* Boolean type. */
 typedef enum { false = 0, true = 1 } bool;
@@ -88,8 +100,8 @@ charging_state get_charging_state(void);
 
 /* Draw sign on screen. */
 void x11_sign_init(void);				/* init sign system */
-void x11_sign_display(const char *sign, bool *ds);	/* display a sign */
-void x11_sign_display_temp(const char *sign, bool *ds);	/* temporal display */
+void x11_sign_display(char sign, bool *ds);		/* display a sign */
+void x11_sign_display_temp(char sign, bool *ds);	/* temporal display */
 void x11_sign_undisplay(bool *ds);			/* undisplay it */
 
 /* Play an alert sound. */
@@ -157,26 +169,24 @@ int main(int argc, char *argv[])
 			/* check low limit */
 			lowlimit = get_design_capacity_low();
 			if (-1 == lowlimit) {
-				fprintf(stderr, "%s\n", MSG_UNABLE_LOW);
-				x11_sign_display_temp(MSG_UNABLE_LOW,
-						      &x11_sign_active);
+				fprintf(stderr, "%s\n", x11_signs[MSG_LOWCAP_WARNING]);
+				x11_sign_display_temp(MSG_LOWCAP_WARNING, &x11_sign_active);
 				break;
 			}
 
 			/* check remaining capacity */
 			remcap = get_remaining_capacity();
 			if (-1 == remcap) {
-				fprintf(stderr, "%s\n", MSG_UNABLE_LEFT);
-				x11_sign_display_temp(MSG_UNABLE_LEFT,
-						      &x11_sign_active);
+				fprintf(stderr, "%s\n", x11_signs[MSG_REMCAP_WARNING]);
+				x11_sign_display_temp(MSG_REMCAP_WARNING, &x11_sign_active);
 				break;
 			}
 
 			/* low battery: display sign, alert and/or shutdown */
 			if (remcap < lowlimit) {
-				x11_sign_display(MESSAGE_LOW, &x11_sign_active);
+				x11_sign_display(MSG_LOW_BATTERY, &x11_sign_active);
 				if (warnnum * arg_check_period >= SAFETY_TIME &&
-				    			!shutdown_launched)
+				    !shutdown_launched)
 					start_shutdown(&shutdown_launched);
 				else {
 					warnnum++;
@@ -192,7 +202,7 @@ int main(int argc, char *argv[])
 			 */
 		case CHST_CHARGED:
 			/* display, reset warn counter and cancel shutdown */
-			x11_sign_display(MESSAGE_CHARGED, &x11_sign_active);
+			x11_sign_display(MSG_BATTERY_CHARGED, &x11_sign_active);
 			warnnum = 0;
 			stop_shutdown(&shutdown_launched);
 			break;
@@ -209,9 +219,8 @@ int main(int argc, char *argv[])
 			x11_sign_undisplay(&x11_sign_active);
 			warnnum = 0;
 			stop_shutdown(&shutdown_launched);
-			fprintf(stderr, "%s\n", MSG_NOT_PRESENT);
-			x11_sign_display_temp(MSG_NOT_PRESENT,
-					      &x11_sign_active);
+			fprintf(stderr, "%s\n", x11_signs[MSG_NOTDET_WARNING]);
+			x11_sign_display_temp(MSG_NOTDET_WARNING, &x11_sign_active);
 			break;
 
 		case CHST_INVALID:
@@ -219,16 +228,14 @@ int main(int argc, char *argv[])
 			x11_sign_undisplay(&x11_sign_active);
 			warnnum = 0;
 			stop_shutdown(&shutdown_launched);
-			fprintf(stderr, "%s\n", MSG_UNABLE_CHST);
-			x11_sign_display_temp(MSG_UNABLE_CHST,
-					      &x11_sign_active);
+			fprintf(stderr, "%s\n", x11_signs[MSG_CHST_READ_WARNING]);
+			x11_sign_display_temp(MSG_CHST_READ_WARNING, &x11_sign_active);
 			break;
 
 		case CHST_OTHER:
 			/* What? */
-			fprintf(stderr, "%s\n", MSG_UNKNOWN_CHST);
-			x11_sign_display_temp(MSG_UNKNOWN_CHST,
-					      &x11_sign_active);
+			fprintf(stderr, "%s\n", x11_signs[MSG_CHST_UNK_WARNING]);
+			x11_sign_display_temp(MSG_CHST_UNK_WARNING, &x11_sign_active);
 			break;
 
 		default:
@@ -373,122 +380,190 @@ int pthread_create_dt(pthread_t *th, void *(*rout)(void *), void *arg)
 	return retval;
 }
 
-/* Auxiliar structure to pass data to redraw control thread. */
+/* drawing data needed for any thread that handles signs */
 struct drawing_data {
 	Display *display;
 	Window win;
 	GC context;
 	int xpos;
 	int ypos;
-	char *message;
-	size_t message_len;
+	XFontStruct *font;
+	const char *cur_msg;
+	size_t cur_msg_len;
 };
 
-/* Auxiliar thread to take care of sign redrawing while X11 thread waits. */
-void *x11_redraw_routine(void *pdd)
+/* global drawing data */
+struct drawing_data x11_dd;
+
+/* pipe to communicate with sign control routine */
+int x11_pipe[2];
+
+/* auxiliar function to send a command to the x11 sign routine */
+void x11_send_command(char command)
 {
-	struct drawing_data *dd = (struct drawing_data *)pdd;
+	int retval;
+	for (;;) {
+		retval = write(x11_pipe[WRITE_FD], &command, sizeof(char));
+		if (retval == 0)
+			continue;
+		if (retval == -1 && errno == EINTR)
+			continue;
+		assert(retval != -1);
+		break;
+	}
+}
+
+/* auxiliar function to prepare a window for different signs */
+void x11_prepare_sign(char command)
+{
+	unsigned width;
+	unsigned height;
+
+	x11_dd.cur_msg = x11_signs[(int)command];
+	x11_dd.cur_msg_len = strlen(x11_dd.cur_msg);
+	XUnmapWindow(x11_dd.display, x11_dd.win);
+
+	width = XTextWidth(x11_dd.font, x11_dd.cur_msg, x11_dd.cur_msg_len) + WIN_PADDING + WIN_PADDING;
+	height = x11_dd.ypos + x11_dd.font->descent + WIN_PADDING;
+
+	XResizeWindow(x11_dd.display, x11_dd.win, width, height);
+	XMapWindow(x11_dd.display, x11_dd.win);
+	XDrawString(x11_dd.display, x11_dd.win, x11_dd.context,
+		    x11_dd.xpos, x11_dd.ypos,
+		    x11_dd.cur_msg, strlen(x11_dd.cur_msg));
+}
+
+/* sign control routine, receives commands and responds to events */
+void *x11_sign_control_routine(void *unused)
+{
+	int connection = ConnectionNumber(x11_dd.display);
+	fd_set readfds;
+	fd_set writefds;
+	fd_set specialfds;
+	int retval;
+	char command;
 	XEvent ev;
 
-	/* prepare thread */
-	assert(0 == pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL));
-	assert(0 == pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL));
+	int maxfd = ((connection > x11_pipe[READ_FD]) ?
+		   (connection + 1) :
+		   (x11_pipe[READ_FD] + 1));
 
-	/* redrawing loop */
 	for (;;) {
-		XNextEvent(dd->display, &ev);
-		switch (ev.type) {
-		case Expose:
-			if (ev.xexpose.count != 0)
+		/* prepare select */
+		FD_ZERO(&readfds);
+		FD_SET(connection, &writefds);
+		FD_SET(connection, &specialfds);
+		FD_SET(x11_pipe[READ_FD], &readfds);
+
+		/* do select */
+		while (-1 == (retval = select(maxfd + 1, &readfds, NULL, NULL, NULL)) && errno == EINTR)
+			;
+		assert(retval != -1);
+
+		/* check commands */
+		if (FD_ISSET(x11_pipe[READ_FD], &readfds)) {
+			assert(0 != read(x11_pipe[READ_FD], &command, sizeof(char)));
+
+			switch (command) {
+			case MSG_BATTERY_CHARGED:
+			case MSG_LOW_BATTERY:
+			case MSG_LOWCAP_WARNING:
+			case MSG_REMCAP_WARNING:
+			case MSG_NOTDET_WARNING:
+			case MSG_CHST_READ_WARNING:
+			case MSG_CHST_UNK_WARNING:
+				x11_prepare_sign(command);
+				XFlush(x11_dd.display);
 				break;
-		case MapNotify:
-			XDrawString(dd->display, dd->win, dd->context,
-				    dd->xpos, dd->ypos,
-				    dd->message, dd->message_len);
-			XFlush(dd->display);
-			break;
-		default:
-			break;
+			case MSG_REMOVE_SIGN:
+				XUnmapWindow(x11_dd.display, x11_dd.win);
+				XFlush(x11_dd.display);
+				break;
+			default:
+				assert(false);
+				break;
+			}
+		}
+
+		/* check X11 events */
+		if (FD_ISSET(connection, &writefds) || FD_ISSET(connection, &specialfds)) {
+			if (XPending(x11_dd.display) == 0) {
+				fprintf(stderr, "Warning: activity in X11 connection but no events\n");
+				continue;
+			}
+
+			XNextEvent(x11_dd.display, &ev);
+			switch (ev.type) {
+			case Expose:
+				if (ev.xexpose.count != 0)
+					break;
+			case MapNotify:
+				XDrawString(x11_dd.display, x11_dd.win, x11_dd.context,
+					    x11_dd.xpos, x11_dd.ypos,
+					    x11_dd.cur_msg, strlen(x11_dd.cur_msg));
+				XFlush(x11_dd.display);
+				break;
+			default:
+				break;
+			}
 		}
 	}
 
-	/* unreachable, the thread will be cancelled */
-	return NULL;
+	return NULL; /* unreachable */
 }
 
-/* Auxiliar semaphore to sync main program and X11 thread. */
-sem_t x11_thread_semaphore;
-
-/* Auxiliar thread to take care of setting up X11 sign and wait. */
-void *x11_thread_routine(void *msg)
+void x11_sign_init(void)
 {
-	pthread_t redraw_thread;
-
-	/* X11 related data */
-	struct drawing_data dd;
+	/* prepare drawing data */
+	pthread_t control_thread;
 	int screen;
 	Colormap cmap;
 	XColor color;
 	unsigned long color_background;
 	unsigned long color_foreground;
-	XFontStruct *font = NULL;
 	XSetWindowAttributes attr;
-	int winwidth;
-	int winheight;
 
-	/* retrieve message */
-	dd.message = (char *) msg;
-	dd.message_len = strlen(msg);
+	/* prepare X11 for multithreading */
+	assert(XInitThreads());
+
+	/* prepare sign control pipe */
+	assert(0 == pipe(x11_pipe));
 
 	/* open display */
-	dd.display = NULL;
-	dd.display = XOpenDisplay(NULL);
-	if (NULL == dd.display) {
-		fprintf(stderr, "Warning: unable to open display\n");
-		goto free_and_exit;
-	}
+	x11_dd.display = NULL;
+	x11_dd.display = XOpenDisplay(NULL);
+	assert (NULL != x11_dd.display);
 
 	/* get default screen */
-	screen = DefaultScreen(dd.display);
-	
+	screen = DefaultScreen(x11_dd.display);
+
 	/* get colors */
-	cmap = DefaultColormap(dd.display, screen);
-	assert(0 != XAllocNamedColor(dd.display, cmap, "red", &color, &color));
+	cmap = DefaultColormap(x11_dd.display, screen);
+	assert(0 != XAllocNamedColor(x11_dd.display, cmap, "red", &color, &color));
 	color_background = color.pixel;
-	assert(0 != XAllocNamedColor(dd.display, cmap, "white", &color, &color));
+	assert(0 != XAllocNamedColor(x11_dd.display, cmap, "white", &color, &color));
 	color_foreground = color.pixel;
 
 	/* get a font for the text */
-	font = XLoadQueryFont(dd.display, arg_win_font);
-	if (NULL == font) {
-		fprintf(stderr, "Warning: unable to load font %s\n",
-			arg_win_font);
-		goto free_and_exit;
-	}
+	x11_dd.font = XLoadQueryFont(x11_dd.display, arg_win_font);
+	assert (NULL != x11_dd.font);
 
 	/* create window */
-	dd.xpos = WIN_PADDING;
-	dd.ypos = font->ascent + WIN_PADDING;
-	winwidth = XTextWidth(font, dd.message, dd.message_len)
-						+ WIN_PADDING + WIN_PADDING;
-	winheight = dd.ypos + font->descent + WIN_PADDING;
-
+	x11_dd.xpos = WIN_PADDING;
+	x11_dd.ypos = x11_dd.font->ascent + WIN_PADDING;
 	attr.background_pixel = color_background;
 	attr.override_redirect = True;
 
-	dd.win = XCreateWindow(dd.display, RootWindow(dd.display, screen),
+	x11_dd.win = XCreateWindow(x11_dd.display, RootWindow(x11_dd.display, screen),
 			       WIN_XPOS, WIN_YPOS,
-			       winwidth, winheight,
+			       WIN_PADDING, WIN_PADDING,	/* width, height */
 			       0, 	/* border width */
 			       CopyFromParent, InputOutput, CopyFromParent,
 			       CWOverrideRedirect | CWBackPixel,
 			       &attr);
 
-	switch (dd.win) {
+	switch (x11_dd.win) {
 	case BadAlloc:
-		fprintf(stderr, "Warning: unable to create window\n");
-		goto free_and_exit;
-		break;
 	case BadColor:
 	case BadCursor:
 	case BadMatch:
@@ -502,20 +577,13 @@ void *x11_thread_routine(void *msg)
 	}
 
 	/* select window events to receive */
-	assert(BadWindow != XSelectInput(dd.display, dd.win,
-					 StructureNotifyMask | ExposureMask));
-
-	/* map it */
-	assert(BadWindow != XMapWindow(dd.display, dd.win));
+	assert(BadWindow != XSelectInput(x11_dd.display, x11_dd.win, StructureNotifyMask | ExposureMask));
 
 	/* create graphical context */
-	dd.context = XCreateGC(dd.display, dd.win, 0UL, NULL);
+	x11_dd.context = XCreateGC(x11_dd.display, x11_dd.win, 0UL, NULL);
 
-	switch (XSetForeground(dd.display, dd.context, color_foreground)) {
+	switch (XSetForeground(x11_dd.display, x11_dd.context, color_foreground)) {
 	case BadAlloc:
-		fprintf(stderr, "Warning: unable to set foreground color\n");
-		goto free_and_exit;
-		break;
 	case BadGC:
 	case BadValue:
 		assert(false); /* internal error !!! */
@@ -524,11 +592,8 @@ void *x11_thread_routine(void *msg)
 		break;
 	}
 
-	switch (XSetBackground(dd.display, dd.context, color_background)) {
+	switch (XSetBackground(x11_dd.display, x11_dd.context, color_background)) {
 	case BadAlloc:
-		fprintf(stderr, "Warning: unable to set background color\n");
-		goto free_and_exit;
-		break;
 	case BadGC:
 	case BadValue:
 		assert(false); /* internal error !!! */
@@ -537,11 +602,8 @@ void *x11_thread_routine(void *msg)
 		break;
 	}
 
-	switch (XSetFont(dd.display, dd.context, font->fid)) {
+	switch (XSetFont(x11_dd.display, x11_dd.context, x11_dd.font->fid)) {
 	case BadAlloc:
-		fprintf(stderr, "Warning: unable to set window font\n");
-		goto free_and_exit;
-		break;
 	case BadGC:
 	case BadFont:
 		assert(false); /* internal error !!! */
@@ -550,56 +612,28 @@ void *x11_thread_routine(void *msg)
 		break;
 	}
 
-	/* start a redrawing thread */
-	assert(0 == pthread_create_dt(&redraw_thread,
-				      x11_redraw_routine, (void *)(&dd)));
-
-	/* wait at semaphore, ready to exit */
-	while (-1 == sem_wait(&x11_thread_semaphore) && EINTR == errno)
-		;
-
-	/* cancel redrawing thread */
-	assert(0 == pthread_cancel(redraw_thread));
-
-free_and_exit:
-	/* free data and exit */
-	if (NULL != dd.display)
-		XCloseDisplay(dd.display);
-
-	/*
-	 * according to the manpage, closing the display frees all resources
-	 * allocated for it unless you specify a special mode.
-	 */
-
-	return NULL;
+	x11_dd.cur_msg = "";
+	pthread_create_dt(&control_thread, x11_sign_control_routine, NULL);
 }
 
-void x11_sign_init(void)
+void x11_sign_display(char sign, bool *sign_up)
 {
-	/* prepare semaphore */
-	assert(0 == sem_init(&x11_thread_semaphore, 0, 0U));
-}
+	static char cur_sign = '\0';
 
-void x11_sign_display(const char *sign, bool *sign_up)
-{
-	pthread_t x11_thread;
-	static const char *cur_sign = NULL;
-
-	/* launch the sign routine */
-	assert(NULL != sign);
 	if (*sign_up && sign == cur_sign)
 		return;
+
 	if (*sign_up)
 		x11_sign_undisplay(sign_up);
-	assert(0 == pthread_create_dt(&x11_thread,
-				      x11_thread_routine, (void *)sign));
+
+	x11_send_command(sign);
 	*sign_up = true;
 	cur_sign = sign;
 }
 
 /* Auxiliar struct to store arguments for temporal display sign thread */
 struct temp_sign_args {
-	const char *sign;
+	char sign;
 	bool *sign_active;
 };
 
@@ -611,7 +645,7 @@ void *temp_sign_routine(void *param)
 	/* recover args */
 	assert(NULL != param);
 	args = *((struct temp_sign_args *)param);
-	
+
 	/* free space */
 	free(param);
 
@@ -622,7 +656,7 @@ void *temp_sign_routine(void *param)
 	return NULL;
 }
 
-void x11_sign_display_temp(const char *sign, bool *ds)
+void x11_sign_display_temp(char sign, bool *ds)
 {
 	struct temp_sign_args *args;
 	pthread_t th;
@@ -640,8 +674,7 @@ void x11_sign_display_temp(const char *sign, bool *ds)
 void x11_sign_undisplay(bool *sign_up)
 {
 	if (*sign_up) {
-		/* increment semaphore used in sign routine */
-		assert(0 == sem_post(&x11_thread_semaphore));
+		x11_send_command(MSG_REMOVE_SIGN);
 		*sign_up = false;
 	}
 }
