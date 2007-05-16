@@ -434,8 +434,6 @@ void *x11_sign_control_routine(void *unused)
 	int connection;
 	int maxfd;
 	fd_set readfds;
-	fd_set writefds;
-	fd_set specialfds;
 	int retval;
 	char command;
 	XEvent ev;
@@ -446,8 +444,7 @@ void *x11_sign_control_routine(void *unused)
 	for (;;) {
 		/* prepare select */
 		FD_ZERO(&readfds);
-		FD_SET(connection, &writefds);
-		FD_SET(connection, &specialfds);
+		FD_SET(connection, &readfds);
 		FD_SET(x11_pipe[READ_FD], &readfds);
 
 		/* do select */
@@ -481,7 +478,7 @@ void *x11_sign_control_routine(void *unused)
 		}
 
 		/* check X11 events */
-		if (FD_ISSET(connection, &writefds) || FD_ISSET(connection, &specialfds)) {
+		if (FD_ISSET(connection, &readfds)) {
 			if (XPending(x11_dd.display) == 0) {
 				fprintf(stderr, "Warning: activity in X11 connection but no events\n");
 				continue;
@@ -492,6 +489,7 @@ void *x11_sign_control_routine(void *unused)
 			case Expose:
 				if (ev.xexpose.count != 0)
 					break;
+			case VisibilityNotify:
 			case MapNotify:
 				XDrawString(x11_dd.display, x11_dd.win, x11_dd.context, x11_dd.xpos, x11_dd.ypos, x11_dd.cur_msg, x11_dd.cur_msg_len);
 				XFlush(x11_dd.display);
@@ -564,7 +562,7 @@ void x11_sign_init(void)
 	}
 
 	/* select window events to receive */
-	assert(BadWindow != XSelectInput(x11_dd.display, x11_dd.win, StructureNotifyMask | ExposureMask));
+	assert(BadWindow != XSelectInput(x11_dd.display, x11_dd.win, StructureNotifyMask | ExposureMask | VisibilityChangeMask));
 
 	/* create graphical context */
 	x11_dd.context = XCreateGC(x11_dd.display, x11_dd.win, 0UL, NULL);
