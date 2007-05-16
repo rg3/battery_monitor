@@ -185,8 +185,7 @@ int main(int argc, char *argv[])
 			/* low battery: display sign, alert and/or shutdown */
 			if (remcap < lowlimit) {
 				x11_sign_display(MSG_LOW_BATTERY, &x11_sign_active);
-				if (warnnum * arg_check_period >= SAFETY_TIME &&
-				    !shutdown_launched)
+				if (warnnum * arg_check_period >= SAFETY_TIME && !shutdown_launched)
 					start_shutdown(&shutdown_launched);
 				else {
 					warnnum++;
@@ -259,8 +258,7 @@ int main(int argc, char *argv[])
  */
 
 /* Auxiliar function. Read an integer field in a file. Returns -1 on errors. */
-int get_integer_field(const char filename[], const char giveaway[],
-		      const char sscanfpattern[])
+int get_integer_field(const char filename[], const char giveaway[], const char sscanfpattern[])
 {
 	char line[LINE_BUFSIZE];
 	int fieldval = -1;
@@ -304,8 +302,7 @@ int get_remaining_capacity(void)
 }
 
 /* Auxiliar function. Read a string field in a file. Returns -1 on errors. */
-int get_string_field(const char filename[], const char giveaway[],
-		     const char sscanfpattern[], char field[LINE_BUFSIZE])
+int get_string_field(const char filename[], const char giveaway[], const char sscanfpattern[], char field[LINE_BUFSIZE])
 {
 	char line[LINE_BUFSIZE];
 	int retstate = -1;
@@ -428,15 +425,14 @@ void x11_prepare_sign(char command)
 
 	XResizeWindow(x11_dd.display, x11_dd.win, width, height);
 	XMapWindow(x11_dd.display, x11_dd.win);
-	XDrawString(x11_dd.display, x11_dd.win, x11_dd.context,
-		    x11_dd.xpos, x11_dd.ypos,
-		    x11_dd.cur_msg, strlen(x11_dd.cur_msg));
+	XDrawString(x11_dd.display, x11_dd.win, x11_dd.context, x11_dd.xpos, x11_dd.ypos, x11_dd.cur_msg, x11_dd.cur_msg_len);
 }
 
 /* sign control routine, receives commands and responds to events */
 void *x11_sign_control_routine(void *unused)
 {
-	int connection = ConnectionNumber(x11_dd.display);
+	int connection;
+	int maxfd;
 	fd_set readfds;
 	fd_set writefds;
 	fd_set specialfds;
@@ -444,9 +440,8 @@ void *x11_sign_control_routine(void *unused)
 	char command;
 	XEvent ev;
 
-	int maxfd = ((connection > x11_pipe[READ_FD]) ?
-		   (connection + 1) :
-		   (x11_pipe[READ_FD] + 1));
+	connection = ConnectionNumber(x11_dd.display);
+	maxfd = (connection > x11_pipe[READ_FD])? connection : x11_pipe[READ_FD];
 
 	for (;;) {
 		/* prepare select */
@@ -498,9 +493,7 @@ void *x11_sign_control_routine(void *unused)
 				if (ev.xexpose.count != 0)
 					break;
 			case MapNotify:
-				XDrawString(x11_dd.display, x11_dd.win, x11_dd.context,
-					    x11_dd.xpos, x11_dd.ypos,
-					    x11_dd.cur_msg, strlen(x11_dd.cur_msg));
+				XDrawString(x11_dd.display, x11_dd.win, x11_dd.context, x11_dd.xpos, x11_dd.ypos, x11_dd.cur_msg, x11_dd.cur_msg_len);
 				XFlush(x11_dd.display);
 				break;
 			default:
@@ -554,13 +547,7 @@ void x11_sign_init(void)
 	attr.background_pixel = color_background;
 	attr.override_redirect = True;
 
-	x11_dd.win = XCreateWindow(x11_dd.display, RootWindow(x11_dd.display, screen),
-			       WIN_XPOS, WIN_YPOS,
-			       WIN_PADDING, WIN_PADDING,	/* width, height */
-			       0, 	/* border width */
-			       CopyFromParent, InputOutput, CopyFromParent,
-			       CWOverrideRedirect | CWBackPixel,
-			       &attr);
+	x11_dd.win = XCreateWindow(x11_dd.display, RootWindow(x11_dd.display, screen), WIN_XPOS, WIN_YPOS, WIN_PADDING, WIN_PADDING, 0, CopyFromParent, InputOutput, CopyFromParent, CWOverrideRedirect | CWBackPixel, &attr);
 
 	switch (x11_dd.win) {
 	case BadAlloc:
@@ -638,7 +625,7 @@ struct temp_sign_args {
 };
 
 /* Temporal display sign thread routine */
-void *temp_sign_routine(void *param)
+void *x11_temp_sign_control(void *param)
 {
 	struct temp_sign_args args;
 
@@ -668,7 +655,7 @@ void x11_sign_display_temp(char sign, bool *ds)
 	args->sign_active = ds;
 
 	/* create thread */
-	assert(0 == pthread_create_dt(&th, temp_sign_routine, (void *)args));
+	assert(0 == pthread_create_dt(&th, x11_temp_sign_control, (void *)args));
 }
 
 void x11_sign_undisplay(bool *sign_up)
@@ -783,8 +770,7 @@ void emit_alert(alert_type al)
 	*alert = al;
 
 	/* launch thread */
-	assert(0 == pthread_create_dt(&sound_thread,
-				      emit_sound_routine, (void *)alert));
+	assert(0 == pthread_create_dt(&sound_thread, emit_sound_routine, (void *)alert));
 }
 
 /* Auxiliar thread to lauch shutdown process. */
@@ -794,9 +780,7 @@ void *start_shutdown_routine(void *unused)
 	char *cmdline = NULL;
 
 	/* create command line string */
-	cmdline = (char *) malloc((strlen(arg_shutdown_command) +
-				   strlen(launch_args) +
-				   strlen(SHUTDOWN_WAIT) + 1) * sizeof(char));
+	cmdline = (char *) malloc((strlen(arg_shutdown_command) + strlen(launch_args) + strlen(SHUTDOWN_WAIT) + 1) * sizeof(char));
 	assert(NULL != cmdline);
 	strcpy(cmdline, arg_shutdown_command);
 	strcat(cmdline, launch_args);
@@ -816,8 +800,7 @@ void start_shutdown(bool *already_active)
 	pthread_t shutdown_thread;
 	if (*already_active)
 		return;
-	assert(0 == pthread_create_dt(&shutdown_thread,
-				      start_shutdown_routine, NULL));
+	assert(0 == pthread_create_dt(&shutdown_thread, start_shutdown_routine, NULL));
 	*already_active = true;
 	emit_alert(ALERT_STARTSHUTDOWN);
 }
@@ -829,8 +812,7 @@ void *stop_shutdown_routine(void *unused)
 	char *cmdline = NULL;
 
 	/* create command line string */
-	cmdline = (char *) malloc((strlen(arg_shutdown_command) +
-				   strlen(cancel_args) + 1) * sizeof(char));
+	cmdline = (char *) malloc((strlen(arg_shutdown_command) + strlen(cancel_args) + 1) * sizeof(char));
 	assert(NULL != cmdline);
 	strcpy(cmdline, arg_shutdown_command);
 	strcat(cmdline, cancel_args);
@@ -849,8 +831,7 @@ void stop_shutdown(bool *still_active)
 	pthread_t shutdown_thread;
 	if (! *still_active)
 		return;
-	assert(0 == pthread_create_dt(&shutdown_thread,
-				      stop_shutdown_routine, NULL));
+	assert(0 == pthread_create_dt(&shutdown_thread, stop_shutdown_routine, NULL));
 	*still_active = false;
 	emit_alert(ALERT_STOPSHUTDOWN);
 }
@@ -914,9 +895,7 @@ void parse_args(int argc, char *argv[])
 		length = strlen(begin);
 		aux = strtol(argv[ARG_CHECK_PERIOD], &end, 0);
 
-		if (end != (begin + length) ||
-		    aux < CHECK_PERIOD_MIN ||
-		    aux > CHECK_PERIOD_MAX) {
+		if (end != (begin + length) || aux < CHECK_PERIOD_MIN || aux > CHECK_PERIOD_MAX) {
 			fprintf(stderr, "Error parsing check period time\n");
 			exit(EXIT_FAILURE);
 		}
