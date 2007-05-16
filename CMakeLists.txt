@@ -1,5 +1,8 @@
 PROJECT(battery_monitor C)
 
+# Cache defaults
+SET(CMAKE_C_FLAGS "-pedantic -Wall" CACHE STRING "Mandatory compiler flags" FORCE)
+
 # Xine commands to run
 SET(XINE_CONFIG_CFLAGS_COMMAND xine-config --cflags)
 SET(XINE_CONFIG_LIBS_COMMAND xine-config --libs)
