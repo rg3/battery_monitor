@@ -219,7 +219,6 @@ int main(int argc, char *argv[])
 			warnnum = 0;
 			stop_shutdown(&shutdown_launched);
 			fprintf(stderr, "%s\n", x11_signs[MSG_NOTDET_WARNING]);
-			x11_sign_display_temp(MSG_NOTDET_WARNING, &x11_sign_active);
 			break;
 
 		case CHST_INVALID:
